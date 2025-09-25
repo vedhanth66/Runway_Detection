@@ -1,0 +1,9 @@
+# Ignore the large dataset folder
+RUNWAY_DATASET/
+
+# Ignore Python virtual environment folder
+venv/
+
+# Ignore other common files
+__pycache__/
+*.pyc
