@@ -6,10 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 def read_image_rgb(image_path: Path) -> Tuple[cv2.Mat, str]:
-	"""Read an image with OpenCV and convert BGR to RGB if needed.
-
-	Returns the numpy array and a short description for the title.
-	"""
+	
 	image = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
 	if image is None:
 		raise FileNotFoundError(f"Failed to read image: {image_path}")

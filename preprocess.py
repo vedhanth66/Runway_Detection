@@ -3,18 +3,22 @@ import json
 import cv2
 import numpy as np
 from tqdm import tqdm
+import textwrap
 
 def generate_masks(json_path, output_dir, resolution):
-
+    """
+    Reads a JSON file with line coordinates (LEDG, REDG) and generates
+    corresponding black and white runway mask images.
+    """
     os.makedirs(output_dir, exist_ok=True)
     with open(json_path, 'r') as f:
         data = json.load(f)
     print(f"Loaded data for {len(data)} images from {json_path}")
 
-    Height, width = resolution
+    height, width = resolution
 
     for image_filename, shapes in tqdm(data.items(), desc=f"Generating masks for {os.path.basename(json_path)}"):
-        mask = np.zeros((Height, width), dtype=np.uint8)
+        mask = np.zeros((height, width), dtype=np.uint8)
 
         ledg_points = None
         redg_points = None
@@ -32,7 +36,6 @@ def generate_masks(json_path, output_dir, resolution):
             bottom_right = redg_points[1]
 
             runway_polygon = np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.int32)
-            
             cv2.fillPoly(mask, [runway_polygon], color=(255))
 
         output_path = os.path.join(output_dir, image_filename)
@@ -40,20 +43,18 @@ def generate_masks(json_path, output_dir, resolution):
 
 
 if __name__ == '__main__':
-    BASE_DIR = 'RUNWAY_DATASET'
+    # --- IMPORTANT: Ensure this path points to your dataset folder ---
+    BASE_DIR = 'RUNWAY_DATASET' 
     RESOLUTION_FOLDER = '640x360'
-    RESOLUTION_DIMENSIONS = (360, 640)
+    RESOLUTION_DIMENSIONS = (360, 640)  # (height, width)
 
     train_json_path = os.path.join(BASE_DIR, 'labels', 'labels', 'lines', 'train_labels_640x360.json')
     train_masks_output_dir = os.path.join(BASE_DIR, RESOLUTION_FOLDER, 'train_masks')
 
     test_json_path = os.path.join(BASE_DIR, 'labels', 'labels', 'lines', 'test_labels_640x360.json')
     test_masks_output_dir = os.path.join(BASE_DIR, RESOLUTION_FOLDER, 'test_masks')
-
-    print("--- Starting Data Preprocessing (Corrected) ---")
+    
+    print("--- Starting Data Preprocessing ---")
     generate_masks(train_json_path, train_masks_output_dir, RESOLUTION_DIMENSIONS)
     generate_masks(test_json_path, test_masks_output_dir, RESOLUTION_DIMENSIONS)
-    
     print("\n--- Preprocessing Complete! ---")
-    print(f"Training masks saved to: {train_masks_output_dir}")
-    print(f"Testing masks saved to: {test_masks_output_dir}")
