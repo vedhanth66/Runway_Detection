@@ -3,13 +3,8 @@ import json
 import cv2
 import numpy as np
 from tqdm import tqdm
-import textwrap
 
 def generate_masks(json_path, output_dir, resolution):
-    """
-    Reads a JSON file with line coordinates (LEDG, REDG) and generates
-    corresponding black and white runway mask images.
-    """
     os.makedirs(output_dir, exist_ok=True)
     with open(json_path, 'r') as f:
         data = json.load(f)
@@ -43,18 +38,17 @@ def generate_masks(json_path, output_dir, resolution):
 
 
 if __name__ == '__main__':
-    # --- IMPORTANT: Ensure this path points to your dataset folder ---
-    BASE_DIR = 'RUNWAY_DATASET' 
-    RESOLUTION_FOLDER = '640x360'
-    RESOLUTION_DIMENSIONS = (360, 640)  # (height, width)
+    base_dir = 'RUNWAY_DATASET'
+    resolution_folder = '640x360'
+    resolution_dimensions = (360, 640)
 
-    train_json_path = os.path.join(BASE_DIR, 'labels', 'labels', 'lines', 'train_labels_640x360.json')
-    train_masks_output_dir = os.path.join(BASE_DIR, RESOLUTION_FOLDER, 'train_masks')
+    train_json_path = os.path.join(base_dir, 'labels', 'labels', 'lines', 'train_labels_640x360.json')
+    train_masks_output_dir = os.path.join(base_dir, resolution_folder, 'train_masks')
 
-    test_json_path = os.path.join(BASE_DIR, 'labels', 'labels', 'lines', 'test_labels_640x360.json')
-    test_masks_output_dir = os.path.join(BASE_DIR, RESOLUTION_FOLDER, 'test_masks')
+    test_json_path = os.path.join(base_dir, 'labels', 'labels', 'lines', 'test_labels_640x360.json')
+    test_masks_output_dir = os.path.join(base_dir, resolution_folder, 'test_masks')
     
     print("--- Starting Data Preprocessing ---")
-    generate_masks(train_json_path, train_masks_output_dir, RESOLUTION_DIMENSIONS)
-    generate_masks(test_json_path, test_masks_output_dir, RESOLUTION_DIMENSIONS)
+    generate_masks(train_json_path, train_masks_output_dir, resolution_dimensions)
+    generate_masks(test_json_path, test_masks_output_dir, resolution_dimensions)
     print("\n--- Preprocessing Complete! ---")
