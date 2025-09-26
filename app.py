@@ -10,7 +10,7 @@ import pipeline
 import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL = pipeline.load_model(device=DEVICE)
+MODELS = pipeline.load_models(device=DEVICE)
 
 def create_performance_chart(results):
     metrics = ['IoU Score', 'Anchor Score', 'Confidence', 'Mean Score']
@@ -32,13 +32,13 @@ def create_coordinate_visualization(results):
 def format_results_summary(results):
     summary = f"""
     ### Performance Metrics
-    - **IoU Score:** {results['iou_score']:.4f} (N/A for new images)
+    - **Model Consistency (IoU):** {results['iou_score']:.4f}
     - **Anchor Score:** {results['anchor_score']:.4f}
     - **Mean Score:** {results['mean_score']:.4f}
     - **Confidence:** {results['confidence']:.4f}
     - **Processing Time:** {results['processing_time']:.2f}s
     ### Detection Status
-    **Overall Result:** {'PASS' if results['boolean_score'] else 'FAIL - Low Score'}
+    **Overall Result:** {'✅ PASS' if results['boolean_score'] else '❌ FAIL - Orientation Invalid'}
     """
     return textwrap.dedent(summary)
 
@@ -47,7 +47,7 @@ def run_analysis(input_image):
         empty_fig = go.Figure().update_layout(paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white'))
         return (None, "## awaiting analysis...", empty_fig, empty_fig, "{}", gr.update(visible=False), gr.update(visible=False))
     
-    results = pipeline.run_full_pipeline(input_image, MODEL, device=DEVICE)
+    results = pipeline.run_full_pipeline(input_image, MODELS, device=DEVICE)
     if results is None: return
     
     performance_chart = create_performance_chart(results)
@@ -90,9 +90,9 @@ with gr.Blocks(theme=gr.themes.Glass(), title="RunwayNet Advanced Dashboard") as
                     json_output = gr.Code(language="json", label="Coordinate Data (JSON)")
     
     with gr.Row(visible=False) as progress_row:
-        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(0,255,150,0.2); border-radius: 10px; border: 1px solid #4ECDC4;'><h3 style='color: #4ECDC4;'>✅ Analysis Complete!</h3></div>""")
+        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(0,255,150,0.2); border-radius: 10px; border: 1px solid #4ECDC4;'><h3 style='color: #4ECDC4;'>Analysis Complete!</h3></div>""")
     with gr.Row(visible=False) as warning_row:
-        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(255,165,0,0.2); border-radius: 10px; border: 1px solid orange;'><h3 style='color: orange;'>⚠️ Low Score Warning</h3></div>""")
+        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(255,165,0,0.2); border-radius: 10px; border: 1px solid orange;'><h3 style='color: orange;'>Low Score Warning</h3></div>""")
 
     analyze_btn.click(
         fn=run_analysis, inputs=[input_image],
