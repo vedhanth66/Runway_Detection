@@ -1,83 +1,108 @@
 import gradio as gr
-import plotly.express as px
-import pandas as pd
 import numpy as np
+import cv2
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import json
+from datetime import datetime
+import textwrap
+import pipeline
+import torch
 
-def create_empty_results():
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+MODEL = pipeline.load_model(device=DEVICE)
+
+def create_performance_chart(results):
+    metrics = ['IoU Score', 'Anchor Score', 'Confidence', 'Mean Score']
+    values = [results["iou_score"], results["anchor_score"], results["confidence"], results["mean_score"]]
+    fig = go.Figure(data=[go.Scatterpolar(r=values, theta=metrics, fill='toself', name='Metrics', line=dict(color='#4ECDC4'))])
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=400)
+    return fig
+
+def create_coordinate_visualization(results):
+    fig = go.Figure()
+    if results["ledg_coords"]:
+        ledg, redg, ctl = results["ledg_coords"], results["redg_coords"], results["ctl_coords"]
+        fig.add_trace(go.Scatter(x=[ledg["start"][0], ledg["end"][0]], y=[ledg["start"][1], ledg["end"][1]], mode='lines+markers', name='Left Edge', line=dict(color='#FF6B6B', width=3)))
+        fig.add_trace(go.Scatter(x=[redg["start"][0], redg["end"][0]], y=[redg["start"][1], redg["end"][1]], mode='lines+markers', name='Right Edge', line=dict(color='#45B7D1', width=3)))
+        fig.add_trace(go.Scatter(x=[ctl["start"][0], ctl["end"][0]], y=[ctl["start"][1], ctl["end"][1]], mode='lines+markers', name='Center Line', line=dict(color='yellow', width=2, dash='dot')))
+    fig.update_layout(showlegend=True, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=400, yaxis=dict(autorange="reversed"))
+    return fig
+
+def format_results_summary(results):
+    summary = f"""
+    ### Performance Metrics
+    - **IoU Score:** {results['iou_score']:.4f} (N/A for new images)
+    - **Anchor Score:** {results['anchor_score']:.4f}
+    - **Mean Score:** {results['mean_score']:.4f}
+    - **Confidence:** {results['confidence']:.4f}
+    - **Processing Time:** {results['processing_time']:.2f}s
+    ### Detection Status
+    **Overall Result:** {'PASS' if results['boolean_score'] else 'FAIL - Low Score'}
+    """
+    return textwrap.dedent(summary)
+
+def run_analysis(input_image):
+    if input_image is None:
+        empty_fig = go.Figure().update_layout(paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white'))
+        return (None, "## awaiting analysis...", empty_fig, empty_fig, "{}", gr.update(visible=False), gr.update(visible=False))
+    
+    results = pipeline.run_full_pipeline(input_image, MODEL, device=DEVICE)
+    if results is None: return
+    
+    performance_chart = create_performance_chart(results)
+    coordinate_viz = create_coordinate_visualization(results)
+    summary_text = format_results_summary(results)
+    
+    coordinate_data = {
+        "left_edge": results["ledg_coords"], "right_edge": results["redg_coords"], "center_line": results["ctl_coords"],
+        "metadata": {"timestamp": datetime.now().isoformat(), "processing_time": f"{results['processing_time']:.2f}s", "confidence": f"{results['confidence']:.4f}"}
+    }
+    
+    show_warning = not results['boolean_score']
+    
     return (
-        None,
-        "Status: Awaiting Input",
-        "No report generated.",
-        px.scatter(),
-        px.bar(),
-        px.scatter(),
-        "{}",
-        "Success: None",
-        "Warning: None"
+        results["visual_result"], summary_text, performance_chart, coordinate_viz,
+        json.dumps(coordinate_data, indent=2), gr.update(visible=True), gr.update(visible=show_warning)
     )
 
-def analyze_runway(image):
-    df = pd.DataFrame({
-        "metric": ["Accuracy", "Precision", "Recall"],
-        "value": [0.92, 0.89, 0.94]
-    })
-
-    radar = px.line_polar(df, r="value", theta="metric", line_close=True, range_r=[0, 1])
-    metrics_chart = px.bar(df, x="metric", y="value", range_y=[0, 1])
-    coords = pd.DataFrame({"x": np.random.rand(5), "y": np.random.rand(5)})
-    coord_plot = px.scatter(coords, x="x", y="y")
-
-    return (
-        image,
-        "Status: Analysis Complete",
-        "Runway detected successfully with stable confidence levels.",
-        radar,
-        metrics_chart,
-        coord_plot,
-        json.dumps(df.to_dict(), indent=2),
-        "Success: Runway detected",
-        "Warning: Minor anomalies at edges"
-    )
-
-with gr.Blocks(title="Runway Analysis Tool") as demo:
-    gr.Markdown("## Runway Analysis Dashboard")
-
+with gr.Blocks(theme=gr.themes.Glass(), title="RunwayNet Advanced Dashboard") as demo:
+    gr.HTML("""<div style="text-align: center; padding: 20px;"><h1 style="color: white; font-size: 2.5em;">✈️ RunwayNet Advanced Dashboard</h1></div>""")
+    
     with gr.Row():
-        with gr.Column(scale=1):
-            input_image = gr.Image(label="Upload Runway Image", type="filepath")
-            analyze_btn = gr.Button("Analyze Runway")
-            clear_btn = gr.Button("Clear Results")
-
         with gr.Column(scale=2):
-            status_display = gr.Textbox(label="System Status", value="Status: Awaiting Input")
-            analysis_report = gr.Textbox(label="Detailed Report")
-
+            input_image = gr.Image(type="numpy", label="Upload Runway Image", height=400)
             with gr.Row():
-                performance_radar = gr.Plot(label="Performance Radar")
-                metrics_dashboard = gr.Plot(label="Metrics Dashboard")
+                analyze_btn = gr.Button("Run Complete Analysis", variant="primary", size="lg")
+                clear_btn = gr.Button("Clear", variant="secondary", size="lg")
+        
+        with gr.Column(scale=3):
+            with gr.Tabs():
+                with gr.TabItem("Visual Detection"):
+                    output_image = gr.Image(type="numpy", label="Detection Result", height=400)
+                with gr.TabItem("Detailed Report"):
+                    summary_output = gr.Markdown(label="Analysis Summary")
+                with gr.TabItem("Performance Analytics"):
+                    performance_radar = gr.Plot(label="Performance Radar Chart")
+                with gr.TabItem("Geometric Analysis"):
+                    coordinate_plot = gr.Plot(label="Coordinate Visualization")
+                with gr.TabItem("Raw Data"):
+                    json_output = gr.Code(language="json", label="Coordinate Data (JSON)")
+    
+    with gr.Row(visible=False) as progress_row:
+        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(0,255,150,0.2); border-radius: 10px; border: 1px solid #4ECDC4;'><h3 style='color: #4ECDC4;'>✅ Analysis Complete!</h3></div>""")
+    with gr.Row(visible=False) as warning_row:
+        gr.HTML("""<div style='text-align: center; padding: 20px; background: rgba(255,165,0,0.2); border-radius: 10px; border: 1px solid orange;'><h3 style='color: orange;'>⚠️ Low Score Warning</h3></div>""")
 
-            coordinate_plot = gr.Plot(label="Runway Coordinate Plot")
-            json_output = gr.JSON(label="Raw JSON Output")
-
-            with gr.Row():
-                success_row = gr.Textbox(label="Success Message", value="Success: None")
-                warning_row = gr.Textbox(label="Warning Message", value="Warning: None")
-
-    all_outputs = [
-        input_image,
-        status_display,
-        analysis_report,
-        performance_radar,
-        metrics_dashboard,
-        coordinate_plot,
-        json_output,
-        success_row,
-        warning_row
-    ]
-
-    analyze_btn.click(fn=analyze_runway, inputs=[input_image], outputs=all_outputs)
-    clear_btn.click(fn=lambda: create_empty_results(), outputs=all_outputs)
+    analyze_btn.click(
+        fn=run_analysis, inputs=[input_image],
+        outputs=[output_image, summary_output, performance_radar, coordinate_plot, json_output, progress_row, warning_row]
+    )
+    
+    clear_btn.click(
+        lambda: (None, "## awaiting analysis...", None, None, "{}", gr.update(visible=False), gr.update(visible=False)),
+        outputs=[input_image, summary_output, performance_radar, coordinate_plot, json_output, progress_row, warning_row]
+    )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(debug=True)
