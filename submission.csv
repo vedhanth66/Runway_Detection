@@ -1,4 +1,4 @@
-Image Name,IOU score,Anchor Score,Boolen_score
+image_name,iou_score,anchor_score,boolean_score
 4AK606_1_2FNLImage2.png,1.992031868541769e-09,0.0,0
 4AK606_1_4LDImage3.png,0.8319897890691929,0.5427514256832789,1
 4AK606_1_5LDImage1.png,0.7978665551224486,0.6196376635967038,1

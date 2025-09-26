@@ -39,15 +39,12 @@ class runway_dataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[index])
         mask_path = os.path.join(self.mask_dir, self.images[index])
         image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        mask = mask.astype(np.float32)
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
         mask[mask > 0] = 1.0
-
         if self.transform is not None:
             augmented = self.transform(image=image, mask=mask)
             image = augmented["image"]
             mask = augmented["mask"].unsqueeze(0)
-
         return image, mask
 
 def train_one_epoch(loader, model, optimizer, loss_fn, scaler):

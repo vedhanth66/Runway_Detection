@@ -9,13 +9,13 @@ import textwrap
 import pipeline
 import torch
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL = pipeline.load_model(device=DEVICE)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = pipeline.load_model(device=device)
 
 def create_performance_chart(results):
     metrics = ['IoU Score', 'Anchor Score', 'Confidence', 'Mean Score']
     values = [results["iou_score"], results["anchor_score"], results["confidence"], results["mean_score"]]
-    fig = go.Figure(data=[go.Scatterpolar(r=values, theta=metrics, fill='toself', name='Metrics', line=dict(color='#4ECDC4'))])
+    fig = go.Figure(data=[go.Scatterpolar(r=values, theta=metrics, fill='toself', name='metrics', line=dict(color='#4ECDC4'))])
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=400)
     return fig
 
@@ -23,9 +23,9 @@ def create_coordinate_visualization(results):
     fig = go.Figure()
     if results["ledg_coords"]:
         ledg, redg, ctl = results["ledg_coords"], results["redg_coords"], results["ctl_coords"]
-        fig.add_trace(go.Scatter(x=[ledg["start"][0], ledg["end"][0]], y=[ledg["start"][1], ledg["end"][1]], mode='lines+markers', name='Left Edge', line=dict(color='#FF6B6B', width=3)))
-        fig.add_trace(go.Scatter(x=[redg["start"][0], redg["end"][0]], y=[redg["start"][1], redg["end"][1]], mode='lines+markers', name='Right Edge', line=dict(color='#45B7D1', width=3)))
-        fig.add_trace(go.Scatter(x=[ctl["start"][0], ctl["end"][0]], y=[ctl["start"][1], ctl["end"][1]], mode='lines+markers', name='Center Line', line=dict(color='yellow', width=2, dash='dot')))
+        fig.add_trace(go.Scatter(x=[ledg["start"][0], ledg["end"][0]], y=[ledg["start"][1], ledg["end"][1]], mode='lines+markers', name='left_edge', line=dict(color='#FF6B6B', width=3)))
+        fig.add_trace(go.Scatter(x=[redg["start"][0], redg["end"][0]], y=[redg["start"][1], redg["end"][1]], mode='lines+markers', name='right_edge', line=dict(color='#45B7D1', width=3)))
+        fig.add_trace(go.Scatter(x=[ctl["start"][0], ctl["end"][0]], y=[ctl["start"][1], ctl["end"][1]], mode='lines+markers', name='center_line', line=dict(color='yellow', width=2, dash='dot')))
     fig.update_layout(showlegend=True, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=400, yaxis=dict(autorange="reversed"))
     return fig
 
@@ -47,16 +47,23 @@ def run_analysis(input_image):
         empty_fig = go.Figure().update_layout(paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white'))
         return (None, "## awaiting analysis...", empty_fig, empty_fig, "{}", gr.update(visible=False), gr.update(visible=False))
     
-    results = pipeline.run_full_pipeline(input_image, MODEL, device=DEVICE)
-    if results is None: return
+    results = pipeline.run_full_pipeline(input_image, model, device=device)
+    if results is None:
+        return
     
     performance_chart = create_performance_chart(results)
     coordinate_viz = create_coordinate_visualization(results)
     summary_text = format_results_summary(results)
     
     coordinate_data = {
-        "left_edge": results["ledg_coords"], "right_edge": results["redg_coords"], "center_line": results["ctl_coords"],
-        "metadata": {"timestamp": datetime.now().isoformat(), "processing_time": f"{results['processing_time']:.2f}s", "confidence": f"{results['confidence']:.4f}"}
+        "left_edge": results["ledg_coords"], 
+        "right_edge": results["redg_coords"], 
+        "center_line": results["ctl_coords"],
+        "metadata": {
+            "timestamp": datetime.now().isoformat(), 
+            "processing_time": f"{results['processing_time']:.2f}s", 
+            "confidence": f"{results['confidence']:.4f}"
+        }
     }
     
     show_warning = not results['boolean_score']
@@ -73,8 +80,8 @@ with gr.Blocks(theme=gr.themes.Glass(), title="RunwayNet Advanced Dashboard") as
         with gr.Column(scale=2):
             input_image = gr.Image(type="numpy", label="Upload Runway Image", height=400)
             with gr.Row():
-                analyze_btn = gr.Button(" Run Complete Analysis", variant="primary", size="lg")
-                clear_btn = gr.Button(" Clear", variant="secondary", size="lg")
+                analyze_btn = gr.Button("Run Complete Analysis", variant="primary", size="lg")
+                clear_btn = gr.Button("Clear", variant="secondary", size="lg")
         
         with gr.Column(scale=3):
             with gr.Tabs():

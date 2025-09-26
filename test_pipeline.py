@@ -2,7 +2,7 @@ import cv2
 import pipeline
 import os
 
-print("--- Testing the Full Pipeline ---")
+print("Testing the Full Pipeline")
 
 DEVICE = "cuda"
 MODEL = pipeline.load_model(device=DEVICE)
@@ -17,11 +17,10 @@ else:
     results = pipeline.run_full_pipeline(image, MODEL, device=DEVICE)
 
     if results:
-        print("\n--- Analysis Complete ---")
+        print("\nAnalysis Complete")
         print(f"Anchor Score: {results['anchor_score']:.4f}")
         print(f"Boolean Score: {results['boolean_score']}")
         print(f"LEDG Coords: {results['ledg_coords']}")
-        print("------------------------")
         
         result_image_bgr = cv2.cvtColor(results['visual_result'], cv2.COLOR_RGB2BGR)
         cv2.imshow("Test Result", result_image_bgr)
