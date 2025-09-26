@@ -10,7 +10,7 @@ import pipeline
 import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODELS = pipeline.load_models(device=DEVICE)
+MODEL = pipeline.load_model(device=DEVICE)
 
 def create_performance_chart(results):
     metrics = ['IoU Score', 'Anchor Score', 'Confidence', 'Mean Score']
@@ -32,13 +32,13 @@ def create_coordinate_visualization(results):
 def format_results_summary(results):
     summary = f"""
     ### Performance Metrics
-    - **Model Consistency (IoU):** {results['iou_score']:.4f}
+    - **IoU Score:** {results['iou_score']:.4f} (N/A for new images)
     - **Anchor Score:** {results['anchor_score']:.4f}
     - **Mean Score:** {results['mean_score']:.4f}
     - **Confidence:** {results['confidence']:.4f}
     - **Processing Time:** {results['processing_time']:.2f}s
     ### Detection Status
-    **Overall Result:** {'✅ PASS' if results['boolean_score'] else '❌ FAIL - Orientation Invalid'}
+    **Overall Result:** {'PASS' if results['boolean_score'] else 'FAIL - Orientation Invalid'}
     """
     return textwrap.dedent(summary)
 
@@ -47,7 +47,7 @@ def run_analysis(input_image):
         empty_fig = go.Figure().update_layout(paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white'))
         return (None, "## awaiting analysis...", empty_fig, empty_fig, "{}", gr.update(visible=False), gr.update(visible=False))
     
-    results = pipeline.run_full_pipeline(input_image, MODELS, device=DEVICE)
+    results = pipeline.run_full_pipeline(input_image, MODEL, device=DEVICE)
     if results is None: return
     
     performance_chart = create_performance_chart(results)
@@ -67,14 +67,14 @@ def run_analysis(input_image):
     )
 
 with gr.Blocks(theme=gr.themes.Glass(), title="RunwayNet Advanced Dashboard") as demo:
-    gr.HTML("""<div style="text-align: center; padding: 20px;"><h1 style="color: white; font-size: 2.5em;">✈️ RunwayNet Advanced Dashboard</h1></div>""")
+    gr.HTML("""<div style="text-align: center; padding: 20px;"><h1 style="color: white; font-size: 2.5em;">RunwayNet Advanced Dashboard</h1></div>""")
     
     with gr.Row():
         with gr.Column(scale=2):
             input_image = gr.Image(type="numpy", label="Upload Runway Image", height=400)
             with gr.Row():
-                analyze_btn = gr.Button("Run Complete Analysis", variant="primary", size="lg")
-                clear_btn = gr.Button("Clear", variant="secondary", size="lg")
+                analyze_btn = gr.Button(" Run Complete Analysis", variant="primary", size="lg")
+                clear_btn = gr.Button(" Clear", variant="secondary", size="lg")
         
         with gr.Column(scale=3):
             with gr.Tabs():
