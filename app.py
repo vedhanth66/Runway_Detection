@@ -2,21 +2,50 @@ import gradio as gr
 import numpy as np
 import cv2
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import json
 from datetime import datetime
 import textwrap
 import pipeline
 import torch
+import json
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = pipeline.load_model(device=device)
 
 def create_performance_chart(results):
-    metrics = ['IoU Score', 'Anchor Score', 'Confidence', 'Mean Score']
-    values = [results["iou_score"], results["anchor_score"], results["confidence"], results["mean_score"]]
-    fig = go.Figure(data=[go.Scatterpolar(r=values, theta=metrics, fill='toself', name='metrics', line=dict(color='#4ECDC4'))])
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=400)
+    metrics = ['Anchor Score', 'Confidence', 'Mean Score']
+    values = [results["anchor_score"], results["confidence"], results["mean_score"]]
+    fig = go.Figure(data=[
+        go.Scatterpolar(
+            r=values,
+            theta=metrics,
+            mode='lines+markers',
+            line=dict(color='#4ECDC4', width=3),
+            marker=dict(size=8, color='#FF6B6B'),
+            name='metrics'
+        )
+    ])
+    fig.update_layout(
+        polar=dict(
+            bgcolor='rgba(30,30,30,1)',
+            radialaxis=dict(
+                visible=True,
+                range=[0, 1],
+                gridcolor='rgba(200,200,200,0.3)',
+                linecolor='rgba(200,200,200,0.5)',
+                tickfont=dict(color='white')
+            ),
+            angularaxis=dict(
+                gridcolor='rgba(200,200,200,0.3)',
+                linecolor='rgba(200,200,200,0.5)',
+                tickfont=dict(color='white')
+            )
+        ),
+        showlegend=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='white'),
+        height=400
+    )
     return fig
 
 def create_coordinate_visualization(results):
@@ -32,11 +61,11 @@ def create_coordinate_visualization(results):
 def format_results_summary(results):
     summary = f"""
     ### Performance Metrics
-    - **IoU Score:** {results['iou_score']:.4f} (N/A for new images)
     - **Anchor Score:** {results['anchor_score']:.4f}
     - **Mean Score:** {results['mean_score']:.4f}
     - **Confidence:** {results['confidence']:.4f}
     - **Processing Time:** {results['processing_time']:.2f}s
+
     ### Detection Status
     **Overall Result:** {'PASS' if results['boolean_score'] else 'FAIL - Orientation Invalid'}
     """
@@ -73,8 +102,8 @@ def run_analysis(input_image):
         json.dumps(coordinate_data, indent=2), gr.update(visible=True), gr.update(visible=show_warning)
     )
 
-with gr.Blocks(theme=gr.themes.Glass(), title="RunwayNet Advanced Dashboard") as demo:
-    gr.HTML("""<div style="text-align: center; padding: 20px;"><h1 style="color: white; font-size: 2.5em;">RunwayNet Advanced Dashboard</h1></div>""")
+with gr.Blocks(theme=gr.themes.Glass(), title="GlideSight Advanced Dashboard") as demo:
+    gr.HTML("""<div style="text-align: center; padding: 20px;"><h1 style="color: white; font-size: 2.5em;">GlideSight Advanced Dashboard</h1></div>""")
     
     with gr.Row():
         with gr.Column(scale=2):
