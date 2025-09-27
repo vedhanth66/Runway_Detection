@@ -41,6 +41,7 @@ def calculate_boolean_score(ctl_points, ledg_points, redg_points):
 def run_full_pipeline(image_np, model, device="cpu"):
     if image_np is None:
         return None
+
     start_time = datetime.now()
     orig_h, orig_w, _ = image_np.shape
     resized_image = cv2.resize(image_np, (640, 360))
@@ -53,10 +54,11 @@ def run_full_pipeline(image_np, model, device="cpu"):
 
     with torch.no_grad():
         pred_mask_tensor = torch.sigmoid(model(input_tensor))
-        pred_mask_np = (pred_mask_tensor > 0.5).float().cpu().numpy().squeeze().astype(np.uint8)
+        pred_mask_np = pred_mask_tensor.cpu().numpy().squeeze()
+        pred_mask_bin = (pred_mask_np > 0.5).astype(np.uint8)
 
     overlay = resized_image.copy()
-    contours, _ = cv2.findContours(pred_mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(pred_mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     ledg_coords, redg_coords, ctl_coords = {}, {}, {}
     anchor_score = 0.0
@@ -66,6 +68,7 @@ def run_full_pipeline(image_np, model, device="cpu"):
         largest_contour = max(contours, key=cv2.contourArea)
         clean_contour = cv2.convexHull(largest_contour)
         cv2.drawContours(overlay, [clean_contour], -1, (0, 255, 100), -1)
+
         rect = cv2.minAreaRect(clean_contour)
         box = cv2.boxPoints(rect)
         anchor_polygon = box.astype(np.int32)
@@ -82,7 +85,7 @@ def run_full_pipeline(image_np, model, device="cpu"):
             [(bottom_left[0] + bottom_right[0]) / 2, (bottom_left[1] + bottom_right[1]) / 2],
         ]
 
-        anchor_score = calculate_anchor_score(pred_mask_np, anchor_polygon)
+        anchor_score = calculate_anchor_score(pred_mask_bin, anchor_polygon)
         boolean_score = calculate_boolean_score(ctl_coords_raw, ledg_coords_raw, redg_coords_raw)
 
         scale_x, scale_y = orig_w / 640.0, orig_h / 360.0
@@ -102,18 +105,24 @@ def run_full_pipeline(image_np, model, device="cpu"):
     final_output_image = cv2.resize(output_image_resized, (orig_w, orig_h))
 
     if anchor_score > 0:
-        cv2.putText(final_output_image, 'Runway Detected', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(final_output_image, "RUNWAY DETECTED", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     else:
-        cv2.putText(final_output_image, 'Runway Not Detected', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(final_output_image, "RUNWAY NOT DETECTED", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    if np.sum(pred_mask_bin) > 0:
+        confidence = float(np.mean(pred_mask_np[pred_mask_bin == 1]))
+    else:
+        confidence = 0.0
 
     processing_time = (datetime.now() - start_time).total_seconds()
-    confidence = float(np.random.uniform(0.92, 0.98))
 
     return {
         "visual_result": final_output_image,
         "anchor_score": anchor_score,
         "boolean_score": boolean_score,
-        "mean_score": (anchor_score + confidence) / 2,
+        "mean_score": (confidence + anchor_score) / 2,
         "confidence": confidence,
         "processing_time": processing_time,
         "ledg_coords": ledg_coords,
